@@ -3,10 +3,14 @@ import { CreateSearchDto } from './dto/create-search.dto';
 import { UpdateSearchDto } from './dto/update-search.dto';
 import { ESService } from '../ESService';
 import { QueryDslMatchAllQuery } from '@elastic/elasticsearch/lib/api/types';
+import { LoggingService } from '../logging/logging.service';
 
 @Injectable()
 export class SearchService {
-  constructor(private readonly esService: ESService) {}
+  constructor(
+    private readonly esService: ESService,
+    private readonly loggingService: LoggingService,
+  ) {}
   // create(createSearchDto: CreateSearchDto) {
   //   return 'This action adds a new search';
   // }
@@ -24,9 +28,43 @@ export class SearchService {
     return result;
   }
 
-  async searchTitle({ queryVar, pageNo }) {
+  async test(getAllFeedInput) {
+    const { pageInfo } = getAllFeedInput;
+    const collectionSizeInfo = 1;
+    const collectionPageInfo = collectionSizeInfo * (pageInfo - 1);
+    const shortformSizeInfo = 2;
+    const shortformPageInfo = shortformSizeInfo * (pageInfo - 1);
+    const snapSizeInfo = 2;
+    const snapPageInfo = snapSizeInfo * (pageInfo - 1);
+
+    const body = [
+      { index: 'shortform' },
+      {
+        from: shortformPageInfo,
+        size: shortformSizeInfo,
+        query: { match_all: {} },
+      },
+      { index: 'snap' },
+      {
+        from: snapPageInfo,
+        size: snapSizeInfo,
+        query: { match_all: {} },
+      },
+      { index: 'collection' },
+      {
+        from: collectionPageInfo,
+        size: collectionSizeInfo,
+        query: { match_all: {} },
+      },
+    ];
+    const result = await this.esService.msearch(body);
+  }
+
+  async searchTitle(pageNo, pageSize, searchText) {
+    // console.log('==========', param);
     const sizeNo = 10;
-    const from = (pageNo - 1) * sizeNo;
+    const from = pageNo ? (pageNo - 1) * sizeNo : 0;
+    const keyword = searchText || '';
     const index = 'booktest1';
     const query = {
       from: from,
@@ -35,7 +73,7 @@ export class SearchService {
         function_score: {
           query: {
             multi_match: {
-              query: `${queryVar}`,
+              query: keyword,
               fields: [
                 'titleName.standard',
                 'titleName.letter_ENGram',
@@ -47,25 +85,25 @@ export class SearchService {
           functions: [
             {
               filter: {
-                match: { 'titleName.standard': queryVar },
+                match: { 'titleName.standard': keyword },
               },
               weight: 3,
             },
             {
               filter: {
-                match: { 'titleName.letter_ENGram': queryVar },
+                match: { 'titleName.letter_ENGram': keyword },
               },
               weight: 1,
             },
             {
               filter: {
-                match: { 'titleName.keyword_ENGram': queryVar },
+                match: { 'titleName.keyword_ENGram': keyword },
               },
               weight: 2,
             },
             {
               filter: {
-                match: { 'titleName.keyword_lower_blank_edgeNGram': queryVar },
+                match: { 'titleName.keyword_lower_blank_edgeNGram': keyword },
               },
               weight: 4,
             },
@@ -76,10 +114,24 @@ export class SearchService {
       },
     };
 
-    const result = await this.esService.search({ query, index });
+    // if (queryVar.length === 0) {
+    //   query.query = {
+    //     match_all: {},
+    //   };
+    // }
+
+    // console.log('----', JSON.stringify(query));
+    const esData = await this.esService.search({ query, index });
 
     // console.log('--------', result);
-    return result;
+    const queryLog = {
+      index,
+      query: keyword,
+      total: esData.total,
+      took: esData.took,
+    };
+    await this.loggingService.logSearchKeyword(queryLog);
+    return { total: esData.total, results: esData.sourceList };
   }
 
   async autoComplete(queryVar: string) {
@@ -157,7 +209,8 @@ export class SearchService {
     const result = await this.esService.search({ query, index });
 
     // console.log('---------', result);
-    return result;
+    return { results: result.sourceList };
+    // return { total: esData.total, results: esData.sourceList };
   }
 
   // findOne(id: number) {

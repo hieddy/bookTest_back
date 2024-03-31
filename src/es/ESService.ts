@@ -50,8 +50,25 @@ export class ESService {
     await this.esClient.indices.create({ index: indexName });
   }
 
-  async putDocument(documents) {
-    await this.esClient.index(documents);
+  async createIndexWithMappingSetting({ indexName, settingInfo, mappingInfo }) {
+    await this.esClient.indices.create({
+      index: indexName,
+      mappings: mappingInfo,
+      settings: settingInfo,
+    });
+  }
+
+  async checkIndexExists(indexName) {
+    const result = await this.esClient.indices.exists({ index: indexName });
+    return result;
+  }
+
+  async putDocument({ index, id, document }) {
+    await this.esClient.index({ index, id, document });
+  }
+
+  async updateDocument({ id, index, doc }) {
+    await this.esClient.update({ id, index, doc });
   }
 
   async bulk({ data }) {
@@ -78,5 +95,28 @@ export class ESService {
     const took = Number(this.fieldFinder(responseBody, ['took'], 0));
 
     return { total, sourceList, took };
+  }
+
+  async msearch(query) {
+    const response = await this.esClient.msearch({
+      searches: query,
+    });
+
+    // console.log(response.responses);
+    console.log(response.responses[0]['hits']['hits'][0]);
+    console.log(response.responses[0]['hits']['hits'][1]);
+    console.log(response.responses[1]['hits']['hits'][0]);
+    console.log(response.responses[1]['hits']['hits'][1]);
+    console.log(response.responses[2]['hits']['hits'][0]);
+    // const totalTook = response.body.took;
+    // const responseBody = response.body.responses;
+    // const dataArray = responseBody.map((each) => ({
+    //   took: each.took,
+    //   total: each.hits.total.value,
+    //   sourceList: each.hits.hits,
+    // }));
+
+    // console.log('------------', data);
+    // return dataArray;
   }
 }

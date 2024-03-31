@@ -21,25 +21,45 @@ export class SearchController {
   //   return this.searchService.create(createSearchDto);
   // }
   @Get()
-  async findAll() {
+  async findAll(@Body() getAllFeedInput) {
     // console.log('controller');
-    return this.searchService.findAll();
+    return this.searchService.test(getAllFeedInput);
   }
+
+  // @Get('title')
+  // async searchTitle(
+  //   @Query('query') queryVar: string,
+  //   @Query('pageNo') pageNo: number = 1,
+  // ) {
+  //   console.log('---------');
+  //   console.log('hi');
+  //   return this.searchService.searchTitle({ queryVar, pageNo });
+  // }
 
   @Get('title')
   async searchTitle(
-    @Query('query') queryVar: string,
-    @Query('pageNo') pageNo: number = 1,
+    @Query('page') pageNo: number,
+    @Query('pageSize') pageSize: number,
+    @Query('searchText') searchText: string,
   ) {
     console.log('---------');
     console.log('hi');
-    return this.searchService.searchTitle({ queryVar, pageNo });
+
+    const { total, results } = await this.searchService.searchTitle(
+      pageNo,
+      pageSize,
+      searchText,
+    );
+    const data = { total, results };
+    return data;
   }
 
   @Get('autoComplete')
-  async autoComplete(@Query('query') queryVar: string) {
+  async autoComplete(@Query('searchText') searchText: string) {
     console.log('Hi');
-    return this.searchService.autoComplete(queryVar);
+    const { results } = await this.searchService.autoComplete(searchText);
+    const data = { results };
+    return data;
   }
 
   // @Get(':id')
