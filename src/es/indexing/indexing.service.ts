@@ -100,23 +100,12 @@ export class IndexingService {
   async deleteIndex(indexName: string) {
     await this.esClient.deleteIndex(indexName);
   }
-  // create(createIndexingDto: CreateIndexingDto) {
-  //   return 'This action adds a new indexing';
-  // }
 
-  // findAll() {
-  //   return `This action returns all indexing`;
-  // }
+  async putAlias({ aliasName, indexName }) {
+    await this.esClient.putAlias({ aliasName, indexName });
+  }
 
-  // findOne(id: number) {
-  //   return `This action returns a #${id} indexing`;
-  // }
-
-  // update(id: number, updateIndexingDto: UpdateIndexingDto) {
-  //   return `This action updates a #${id} indexing`;
-  // }
-
-  // remove(id: number) {
-  //   return `This action removes a #${id} indexing`;
-  // }
+  async deleteAlias({ aliasName, indexName }) {
+    await this.esClient.deleteAlias({ aliasName, indexName });
+  }
 }

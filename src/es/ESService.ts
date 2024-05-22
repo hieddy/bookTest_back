@@ -71,6 +71,14 @@ export class ESService {
     await this.esClient.update({ id, index, doc });
   }
 
+  async createLogCount({ index, id, document }) {
+    await this.esClient.index({ index, id, document });
+  }
+
+  async updateLogCount({ id, index, script }) {
+    await this.esClient.update({ id, index, script });
+  }
+
   async bulk({ data }) {
     await this.esClient.bulk({ body: data });
   }
@@ -97,26 +105,28 @@ export class ESService {
     return { total, sourceList, took };
   }
 
+  async getAggs({ index, query }) {
+    const response = await this.esClient.search({ index, body: query });
+    return response;
+  }
+
   async msearch(query) {
     const response = await this.esClient.msearch({
       searches: query,
     });
+  }
 
-    // console.log(response.responses);
-    console.log(response.responses[0]['hits']['hits'][0]);
-    console.log(response.responses[0]['hits']['hits'][1]);
-    console.log(response.responses[1]['hits']['hits'][0]);
-    console.log(response.responses[1]['hits']['hits'][1]);
-    console.log(response.responses[2]['hits']['hits'][0]);
-    // const totalTook = response.body.took;
-    // const responseBody = response.body.responses;
-    // const dataArray = responseBody.map((each) => ({
-    //   took: each.took,
-    //   total: each.hits.total.value,
-    //   sourceList: each.hits.hits,
-    // }));
+  async putAlias({ indexName, aliasName }) {
+    const result = await this.esClient.indices.putAlias({
+      index: indexName,
+      name: aliasName,
+    });
+  }
 
-    // console.log('------------', data);
-    // return dataArray;
+  async deleteAlias({ indexName, aliasName }) {
+    const result = await this.esClient.indices.deleteAlias({
+      index: indexName,
+      name: aliasName,
+    });
   }
 }

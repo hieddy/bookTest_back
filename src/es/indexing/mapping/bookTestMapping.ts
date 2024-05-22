@@ -57,13 +57,15 @@ export const book_test2_mapping = {
     authorName: {
       type: 'text',
       fields: {
-        keyword: {
-          type: 'keyword',
+        standard: {
+          type: 'text',
+          analyzer: 'author_standard_analyzer',
+          search_analyzer: 'author_standard_analyzer',
         },
         nori: {
           type: 'text',
-          analyzer: 'nori',
-          search_analyzer: 'nori',
+          analyzer: 'author_nori_analyzer',
+          search_analyzer: 'author_nori_analyzer',
         },
       },
     },

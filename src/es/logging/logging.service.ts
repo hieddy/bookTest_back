@@ -8,6 +8,9 @@ export class LoggingService {
   constructor(private readonly esClient: ESService) {}
 
   async logSearchKeyword(queryLog) {
+    const { query: searchQuery, total: hitCount, took } = queryLog;
+    const documentId = uuid();
+
     const currentTime = new Date();
     const currentDate = currentDateConverter(currentTime);
 
@@ -20,16 +23,18 @@ export class LoggingService {
     //2-2. indexing document
     if (!indexInfo) {
       await this.esClient.createIndex(indexName);
-      const searchQuery = queryLog.query;
 
       const logDocument = {
-        count: 1,
+        id: documentId,
         query: searchQuery,
+        count: 1,
+        // hitCount,
+        // took,
       };
 
-      await this.esClient.putDocument({
+      await this.esClient.createLogCount({
+        id: documentId,
         index: indexName,
-        id: searchQuery,
         document: logDocument,
       });
     }
@@ -41,7 +46,7 @@ export class LoggingService {
         query: {
           term: {
             'query.keyword': {
-              value: queryLog.query,
+              value: searchQuery,
             },
           },
         },
@@ -50,33 +55,66 @@ export class LoggingService {
         index: indexName,
         query: loggedInfoFinder,
       });
-      // console.log(queryLog.query);
-      // console.log(loggedQueryInfo);
 
       if (loggedQueryInfo.total === 0) {
-        const searchQuery = queryLog.query;
         const logDocument = {
-          count: 1,
+          id: documentId,
           query: searchQuery,
+          count: 1,
+          // hitCount,
+          // took,
         };
-        await this.esClient.putDocument({
+        await this.esClient.createLogCount({
+          id: documentId,
           index: indexName,
-          id: searchQuery,
           document: logDocument,
         });
       } else {
-        const count = loggedQueryInfo.sourceList[0].count + 1;
-        const searchQuery = queryLog.query;
-        const logDocument = {
-          count,
-          query: searchQuery,
+        const script = {
+          source: 'ctx._source.count += 1',
+          lang: 'painless',
         };
-        await this.esClient.updateDocument({
+        await this.esClient.updateLogCount({
           index: indexName,
-          id: searchQuery,
-          doc: logDocument,
+          id: loggedQueryInfo.sourceList[0].id,
+          script,
         });
       }
     }
+  }
+
+  async logSearchKeywordTest(queryLog) {
+    const { query: searchQuery, total: hitCount, took, index } = queryLog;
+    const documentId = uuid();
+
+    const currentTime = new Date();
+    const currentDate = currentDateConverter(currentTime);
+
+    const indexName = `logging_search_keyword-${currentDate}`;
+    // 1. index 존재여부 확인
+    const indexInfo = await this.esClient.checkIndexExists(indexName);
+
+    // 2. index 없으면
+    // 2-1. index 생성, index close, index setting, index open, index mappipng
+    //2-2. indexing document
+    if (!indexInfo) {
+      await this.esClient.createIndex(indexName);
+    }
+    //3. index 있으면
+    //3-1. document create
+    const logDocument = {
+      id: documentId,
+      indexName: index,
+      query: searchQuery,
+      count: 1,
+      hitCount,
+      took,
+    };
+
+    await this.esClient.createLogCount({
+      id: documentId,
+      index: indexName,
+      document: logDocument,
+    });
   }
 }

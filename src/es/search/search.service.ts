@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CreateSearchDto } from './dto/create-search.dto';
-import { UpdateSearchDto } from './dto/update-search.dto';
 import { ESService } from '../ESService';
-import { QueryDslMatchAllQuery } from '@elastic/elasticsearch/lib/api/types';
 import { LoggingService } from '../logging/logging.service';
 
 @Injectable()
@@ -11,9 +8,6 @@ export class SearchService {
     private readonly esService: ESService,
     private readonly loggingService: LoggingService,
   ) {}
-  // create(createSearchDto: CreateSearchDto) {
-  //   return 'This action adds a new search';
-  // }
 
   async findAll() {
     const index = 'test';
@@ -24,48 +18,15 @@ export class SearchService {
     };
 
     const result = await this.esService.search({ index, query });
-    // return `This action returns all search`;
+
     return result;
   }
 
-  async test(getAllFeedInput) {
-    const { pageInfo } = getAllFeedInput;
-    const collectionSizeInfo = 1;
-    const collectionPageInfo = collectionSizeInfo * (pageInfo - 1);
-    const shortformSizeInfo = 2;
-    const shortformPageInfo = shortformSizeInfo * (pageInfo - 1);
-    const snapSizeInfo = 2;
-    const snapPageInfo = snapSizeInfo * (pageInfo - 1);
-
-    const body = [
-      { index: 'shortform' },
-      {
-        from: shortformPageInfo,
-        size: shortformSizeInfo,
-        query: { match_all: {} },
-      },
-      { index: 'snap' },
-      {
-        from: snapPageInfo,
-        size: snapSizeInfo,
-        query: { match_all: {} },
-      },
-      { index: 'collection' },
-      {
-        from: collectionPageInfo,
-        size: collectionSizeInfo,
-        query: { match_all: {} },
-      },
-    ];
-    const result = await this.esService.msearch(body);
-  }
-
   async searchTitle(pageNo, pageSize, searchText) {
-    // console.log('==========', param);
-    const sizeNo = 10;
+    const sizeNo = pageSize ? pageSize : 10;
     const from = pageNo ? (pageNo - 1) * sizeNo : 0;
     const keyword = searchText || '';
-    const index = 'booktest1';
+    const index = 'booktest';
     const query = {
       from: from,
       size: sizeNo,
@@ -79,6 +40,8 @@ export class SearchService {
                 'titleName.letter_ENGram',
                 'titleName.keyword_ENGram',
                 'titleName.keyword_lower_blank_edgeNGram',
+                'titleChosung.keyword_lower_blank_edgeNGram',
+                'titleChosung.keyword',
               ],
             },
           },
@@ -107,6 +70,18 @@ export class SearchService {
               },
               weight: 4,
             },
+            {
+              filter: {
+                match: { 'titleChosung.keyword': keyword },
+              },
+              weight: 4,
+            },
+            {
+              filter: {
+                match: { 'titleChosung.letter_ENGram': keyword },
+              },
+              weight: 4,
+            },
           ],
           score_mode: 'multiply',
           boost_mode: 'multiply',
@@ -114,35 +89,108 @@ export class SearchService {
       },
     };
 
-    // if (queryVar.length === 0) {
-    //   query.query = {
-    //     match_all: {},
-    //   };
-    // }
-
-    // console.log('----', JSON.stringify(query));
     const esData = await this.esService.search({ query, index });
 
-    // console.log('--------', result);
+    const { total: resultCount, sourceList: resultArr, took } = esData;
+
+    const arrangedResults = [];
+
     const queryLog = {
       index,
       query: keyword,
-      total: esData.total,
-      took: esData.took,
+      total: resultCount,
+      took: took,
     };
-    await this.loggingService.logSearchKeyword(queryLog);
-    return { total: esData.total, results: esData.sourceList };
+    if (keyword != '') {
+      await this.loggingService.logSearchKeywordTest(queryLog);
+    }
+    return { total: resultCount, results: resultArr, arrangedResults };
+  }
+
+  async searchAuthor(pageNo, pageSize, searchText) {
+    const sizeNo = pageSize ? pageSize : 10;
+    const from = pageNo ? (pageNo - 1) * sizeNo : 0;
+    const keyword = searchText || '';
+    const index = 'booktest';
+    const query = {
+      from,
+      size: sizeNo,
+      query: {
+        match: {
+          authorName: keyword,
+        },
+      },
+    };
+
+    const esData = await this.esService.search({ query, index });
+
+    const { total: resultCount, sourceList: resultArr, took } = esData;
+
+    let arrangedResults = [];
+    if (resultCount === 0) {
+      // const arrangedQuery = {
+      //   from,
+      //   size: sizeNo,
+      //   query: {
+      //     fuzzy: {
+      //       'authorName.keyword': {
+      //         value: keyword,
+      //         fuzziness: 1,
+      //         max_expansions: 50,
+      //         prefix_length: 1,
+      //         transpositions: false,
+      //       },
+      //     },
+      //   },
+      // };
+
+      const arrangedQuery = {
+        from,
+        size: sizeNo,
+        query: {
+          match: {
+            authorName: {
+              query: keyword,
+              fuzziness: 1,
+            },
+          },
+        },
+      };
+
+      const arrangedEsData = await this.esService.search({
+        query: arrangedQuery,
+        index,
+      });
+      const {
+        total: arrangedResultCount,
+        sourceList: arrangedResultArr,
+        took: arrangedTook,
+      } = arrangedEsData;
+
+      arrangedResults = arrangedResultArr;
+    }
+
+    const queryLog = {
+      index,
+      query: keyword,
+      total: resultCount,
+      took: took,
+    };
+    if (keyword != '') {
+      await this.loggingService.logSearchKeywordTest(queryLog);
+    }
+    return { total: resultCount, results: resultArr, arrangedResults };
   }
 
   async autoComplete(queryVar: string) {
-    const index = 'booktest1';
+    const index = 'booktest';
     const query = {
       size: 5,
       query: {
         function_score: {
           query: {
             multi_match: {
-              query: `${queryVar}`,
+              query: queryVar,
               fields: [
                 'titleName.standard',
                 'titleName.letter_ENGram',
@@ -208,20 +256,34 @@ export class SearchService {
 
     const result = await this.esService.search({ query, index });
 
-    // console.log('---------', result);
     return { results: result.sourceList };
-    // return { total: esData.total, results: esData.sourceList };
   }
 
-  // findOne(id: number) {
-  //   return `This action returns a #${id} search`;
-  // }
+  async getPopularKeywords() {
+    const indexName = 'logging_search_keyword-*';
+    const query = {
+      size: 0,
+      aggs: {
+        pop: {
+          terms: {
+            field: 'query.keyword',
+          },
+          // aggs: {
+          //   count: {
+          //     sum: {
+          //       field: 'count',
+          //     },
+          //   },
+          // },
+        },
+      },
+    };
 
-  // update(id: number, updateSearchDto: UpdateSearchDto) {
-  //   return `This action updates a #${id} search`;
-  // }
+    const esData = await this.esService.getAggs({ query, index: indexName });
 
-  // remove(id: number) {
-  //   return `This action removes a #${id} search`;
-  // }
+    const result = esData.aggregations.pop['buckets'];
+
+    // console.log('---------', esData.aggregations.pop['buckets']);
+    return result;
+  }
 }

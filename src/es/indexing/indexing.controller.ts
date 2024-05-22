@@ -1,16 +1,5 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  Put,
-} from '@nestjs/common';
+import { Controller, Post, Body, Param, Delete, Put } from '@nestjs/common';
 import { IndexingService } from './indexing.service';
-import { CreateIndexingDto } from './dto/create-indexing.dto';
-import { UpdateIndexingDto } from './dto/update-indexing.dto';
 
 @Controller('indexing')
 export class IndexingController {
@@ -27,23 +16,9 @@ export class IndexingController {
     return { message: 'Deleted Successfully' };
   }
 
-  // @Post()
-  // create(@Body() createIndexingDto: CreateIndexingDto) {
-  //   return this.indexingService.create(createIndexingDto);
-  // }
-
-  // @Get()
-  // findAll() {
-  //   return this.indexingService.findAll();
-  // }
-
-  // @Get(':id')
-  // findOne(@Param('id') id: string) {
-  //   return this.indexingService.findOne(+id);
-  // }
-
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.indexingService.remove(+id);
-  // }
+  @Post('/alias')
+  async putAlias(@Body() body: { aliasName: string; indexName: string }) {
+    await this.indexingService.putAlias(body);
+    return { message: 'alias changed successfully' };
+  }
 }

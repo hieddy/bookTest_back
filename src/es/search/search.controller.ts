@@ -1,40 +1,9 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { SearchService } from './search.service';
-import { CreateSearchDto } from './dto/create-search.dto';
-import { UpdateSearchDto } from './dto/update-search.dto';
 
 @Controller('search')
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
-
-  // @Post()
-  // create(@Body() createSearchDto: CreateSearchDto) {
-  //   return this.searchService.create(createSearchDto);
-  // }
-  @Get()
-  async findAll(@Body() getAllFeedInput) {
-    // console.log('controller');
-    return this.searchService.test(getAllFeedInput);
-  }
-
-  // @Get('title')
-  // async searchTitle(
-  //   @Query('query') queryVar: string,
-  //   @Query('pageNo') pageNo: number = 1,
-  // ) {
-  //   console.log('---------');
-  //   console.log('hi');
-  //   return this.searchService.searchTitle({ queryVar, pageNo });
-  // }
 
   @Get('title')
   async searchTitle(
@@ -42,15 +11,22 @@ export class SearchController {
     @Query('pageSize') pageSize: number,
     @Query('searchText') searchText: string,
   ) {
-    console.log('---------');
-    console.log('hi');
+    const { total, results, arrangedResults } =
+      await this.searchService.searchTitle(pageNo, pageSize, searchText);
+    const data = { total, results, arrangedResults };
+    return data;
+  }
 
-    const { total, results } = await this.searchService.searchTitle(
-      pageNo,
-      pageSize,
-      searchText,
-    );
-    const data = { total, results };
+  @Get('author')
+  async searchAuthor(
+    @Query('page') pageNo: number,
+    @Query('pageSize') pageSize: number,
+    @Query('searchText') searchText: string,
+  ) {
+    // console.log('------ author -------');
+    const { total, results, arrangedResults } =
+      await this.searchService.searchAuthor(pageNo, pageSize, searchText);
+    const data = { total, results, arrangedResults };
     return data;
   }
 
@@ -62,18 +38,9 @@ export class SearchController {
     return data;
   }
 
-  // @Get(':id')
-  // findOne(@Param('id') id: string) {
-  //   return this.searchService.findOne(+id);
-  // }
-
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateSearchDto: UpdateSearchDto) {
-  //   return this.searchService.update(+id, updateSearchDto);
-  // }
-
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.searchService.remove(+id);
-  // }
+  @Get('popularKeywords')
+  async getPopularKeywords() {
+    const data = await this.searchService.getPopularKeywords();
+    return data;
+  }
 }
